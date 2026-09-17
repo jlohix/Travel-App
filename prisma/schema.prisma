@@ -1,0 +1,98 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  username  String   @unique
+  password  String
+  avatarUrl String?
+  bio       String?
+  createdAt DateTime @default(now())
+
+  pins            Pin[]
+  posts           Post[]
+  comments        Comment[]
+  votes           Vote[]
+  sentMessages    Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+}
+
+// A saved pin on the interactive map
+model Pin {
+  id        String   @id @default(cuid())
+  title     String
+  note      String?
+  lat       Float
+  lng       Float
+  category  String   @default("general") // general, food, hotel, sight, wishlist
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Reddit-style forum post scoped to a location
+model Post {
+  id        String   @id @default(cuid())
+  title     String
+  body      String
+  imageUrl  String?
+  // Location filtering fields
+  country   String?
+  region    String?  // county / state / province
+  city      String?
+  createdAt DateTime @default(now())
+
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  comments Comment[]
+  votes    Vote[]
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  body      String
+  createdAt DateTime @default(now())
+
+  postId String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
+
+// Upvote/downvote on a post. value is 1 or -1.
+model Vote {
+  id     String @id @default(cuid())
+  value  Int
+
+  postId String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+}
+
+// Direct message between two users
+model Message {
+  id        String   @id @default(cuid())
+  body      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  senderId String
+  sender   User   @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+
+  recipientId String
+  recipient   User   @relation("ReceivedMessages", fields: [recipientId], references: [id], onDelete: Cascade)
+}
